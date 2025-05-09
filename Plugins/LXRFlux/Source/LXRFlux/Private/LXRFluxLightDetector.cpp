@@ -49,6 +49,7 @@ SOFTWARE.
 #include "Engine/GameInstance.h"
 #include "GameFramework/Character.h"
 
+DEFINE_LOG_CATEGORY(LogLXRFluxLightDetector);
 
 static TAutoConsoleVariable<bool> CVarFLXRFluxIndirect(
 	TEXT("FLXRFlux.disable"),
@@ -346,17 +347,18 @@ void ULXRFluxLightDetectorComponent::BeginPlay()
 	CaptureAnalyzeDispatchParams->FrameCaptureMax = FMath::Max(CaptureRate, 1);
 	CaptureAnalyzeDispatchParams->Output = FluxOutput;
 	CaptureAnalyzeDispatchParams->IndirectDetector = this;
-	CaptureAnalyzeDispatchParams->LuminanceThreshold = bUseLuminanceThreshold ? LuminanceThreshold : 0.0f;;
+	CaptureAnalyzeDispatchParams->LuminanceThreshold = bUseLuminanceThreshold ? LuminanceThreshold : 0.0f;
+	CaptureAnalyzeDispatchParams->CalculationLuminanceMode = CalculationLuminanceMode;
 	CaptureAnalyzeDispatchParams->RenderTargetTop = CaptureAnalyzeDispatchParams->IndirectDetector->GetTopTarget()->GameThread_GetRenderTargetResource();
 	CaptureAnalyzeDispatchParams->IndirectDetector->GetTopTarget()->UpdateResourceImmediate();
 	CaptureAnalyzeDispatchParams->RenderTargetBot = CaptureAnalyzeDispatchParams->IndirectDetector->GetBotTarget()->GameThread_GetRenderTargetResource();
 	CaptureAnalyzeDispatchParams->IndirectDetector->GetBotTarget()->UpdateResourceImmediate();
 	CaptureAnalyzeDispatchParams->OnReadbackComplete = [this]() { this->OnReadbackComplete(); };
-
+	
 	CaptureAnalyzeDispatchParams->bIsInitialized = true;
 
 
-	//Lazy "late begin play"
+	//Lazy "late begin play"v
 	FTimerHandle Temp;
 	GetWorld()->GetTimerManager().SetTimer(Temp, FTimerDelegate::CreateLambda([&]
 	{
@@ -415,80 +417,6 @@ void ULXRFluxLightDetectorComponent::TickComponent(float DeltaTime, ELevelTick T
 		}
 		GEngine->AddOnScreenDebugMessage(static_cast<int32>(GetUniqueID()), DeltaTime, FColor::Red, FString::Printf(TEXT("FLXRFlux Indirect %s Disabled"), *Disabled));
 	}
-
-
-	// if (bFLXRFluxDebugCaptureWidgetEnabled)
-	// {
-	// 	for (auto& CaptureComponent2D : SceneCaptures)
-	// 	{
-	// 		DrawDebugCamera(GetWorld(), CaptureComponent2D->GetComponentLocation(), CaptureComponent2D->GetComponentRotation(), CaptureComponent2D->FOVAngle, 4, FColor::Green, 0,
-	// 		                DeltaTime);
-	//
-	// 		ChildActorComponent->GetChildActor()->SetActorLocation(GetOwner()->GetActorLocation());
-	// 		ChildActorComponent->SetWorldLocation(GetOwner()->GetActorLocation());
-	//
-	// 		DrawDebugDirectionalArrow(GetWorld(), GetOwner()->GetActorLocation(), ChildActorComponent.Get()->GetChildActor()->GetActorLocation(), 250.f, FColor::Red);
-	// 	}
-	// }
-
-	// Luminance = FMath::FInterpConstantTo(Luminance, LuminanceTarget, DeltaTime, 2);
-	// ColorOutput = FMath::CInterpTo(ColorOutput, ColorOutputTarget, DeltaTime, 2);
-	// IndirectMeshComponent->SetWorldRotation(FQuat::MakeFromEuler(FVector::RightVector));
-	// TopSceneCaptureComponent->SetRelativeTransform(FTransform(FQuat::MakeFromEuler(FVector(r ? 0 : 0, r ? 90 : -90, 45.f)), FVector(0, 0, r ? -120 : 120)));
-	// BotSceneCaptureComponent->SetRelativeTransform(FTransform(FQuat::MakeFromEuler(FVector(r ? 0 : 0, r ? -90 : 90, 45.f)), FVector(0, 0, r ? 120 : -120)));
-
-	// TargetChangeTimer += DeltaTime;
-
-	// if (TargetChangeTimer > 0.03f)
-	// {
-	// 	// TargetChangeTimer = 0;
-	// 	TargetLocation = TargetLocation * (FVector::UpVector * -1);
-	// 	IndirectMeshComponent->SetRelativeTransform(FTransform(FQuat::MakeFromEuler(FVector(r ? 0 : 1, r ? 0 : 1, r ? 0 : 1)), IndirectMeshComponent->GetRelativeLocation(),
-	// 	                                                       FVector(1, 1, 1)));
-	// 	// auto x = IndirectMeshComponent->GetRelativeRotation().Euler();
-	// 	// auto V = FVector::RightVector;
-	// 	// V=V*45;
-	// 	// IndirectMeshComponent->AddWorldRotation(FRotator::MakeFromEuler(V));
-	//
-	// 	TopSceneCaptureComponent->SetRelativeTransform(FTransform(FQuat::MakeFromEuler(FVector(0, -90, 45.f)), FVector(0, 0, r ? 75 : 70)));
-	// 	BotSceneCaptureComponent->SetRelativeTransform(FTransform(FQuat::MakeFromEuler(FVector(0, 90, 45.f)), FVector(0, 0, r ? -75 : -70)));
-	// 	r = !r;
-	// }
-
-
-	// Luminance = GetBrightness();
-	// ColorOutput = GetColor();
-
-	// TargetChangeTimer += DeltaTime;
-	//
-	// if (TargetChangeTimer > 0.025)
-	// {
-	// 	for (auto SceneCapture : SceneCaptures)
-	// 	{
-	// 		TargetChangeTimer = 0;
-	// 		// SceneCapture->bCaptureEveryFrame = true;
-	// 		SceneCapture->CaptureSceneDeferred();
-	// 	}
-	// }
-
-	// int32 FrameNumber = GFrameNumber;
-	//
-	// UE_LOG(LogTemp, Warning, TEXT("[FLXRFlux - Tick:%d ]"), FrameNumber);
-	//
-	// if (IsReadbackReady(IndirectAnalyzeDispatchParams))
-	// {
-	// 	IndirectAnalyzeDispatchParams->bReadingInProgress;
-	// 	IndirectAnalyzeDispatchParams->ReadbackReadyFrames++;
-	//
-	// 	UE_LOG(LogTemp, Warning, TEXT("[FLXRFlux] Waiting... Frames: %d"), IndirectAnalyzeDispatchParams->ReadbackReadyFrames);
-	//
-	// 	if (IndirectAnalyzeDispatchParams->ReadbackReadyFrames > 5)
-	// 	{
-	// 		UE_LOG(LogTemp, Warning, TEXT("Readback ready, dispatching GPU read..."));
-	//
-	// 		TriggerReadback(IndirectAnalyzeDispatchParams);
-	// 	}
-	// }
 
 	HandleOneShotSceneCaptureCooldown();
 
@@ -665,6 +593,8 @@ void ULXRFluxLightDetectorComponent::OnReadbackComplete()
 		float TotalWeight = TopCaptureWeight + BotCaptureWeight;
 		TotalWeight = FMath::Max(TotalWeight, 1);
 
+		UE_LOG(LogLXRFluxLightDetector, Log, TEXT("Luminance before calculation : %f"), FluxOutput->Luminance);
+		
 		FluxOutput->Color = (FluxOutput->TopColor * TopCaptureWeight + FluxOutput->BotColor * BotCaptureWeight) / TotalWeight;
 		FluxOutput->Luminance = (FluxOutput->TopLuminance * TopCaptureWeight + FluxOutput->BotLuminance * BotCaptureWeight) / TotalWeight;
 	}
@@ -899,9 +829,8 @@ void ULXRFluxLightDetectorComponent::CreateCapturePrerequisites()
 		SceneCapture->bCaptureOnMovement = false;
 		SceneCapture->bConsiderUnrenderedOpaquePixelAsFullyTranslucent = true;
 
-		SceneCapture->CaptureSource = ESceneCaptureSource::SCS_SceneColorHDR;
+		SceneCapture->CaptureSource = SaveLuminanceSceneTextureMode;
 		SceneCapture->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-
 
 		// Todo move this all to subsystem.
 		TArray<AActor*> ActorsToRender;

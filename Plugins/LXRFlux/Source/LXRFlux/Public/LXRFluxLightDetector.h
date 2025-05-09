@@ -27,11 +27,14 @@ SOFTWARE.
 #include "CoreMinimal.h"
 #include "MotionDelayBuffer.h"
 #include "RHIGPUReadback.h"
+#include "LXRInfo.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "UnrealClient.h"
 #include "Components/ActorComponent.h"
 #include "RenderCommandFence.h"
 #include "LXRFluxLightDetector.generated.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogLXRFluxLightDetector, Log, All);
 
 UENUM()
 enum ESmoothMethod
@@ -156,7 +159,6 @@ struct FLXRValidatedColor : FLXRValidatedValue
 	}
 };
 
-
 USTRUCT(Blueprintable)
 struct FFluxOutput
 {
@@ -210,6 +212,12 @@ public:
 	UPROPERTY(EditAnywhere, Category="LXRFlux|Analyze")
 	bool bUseLuminanceThreshold = false;
 
+	UPROPERTY(EditAnywhere, Category="LXRFlux|Analyze")
+	ECalculationLuminanceMode CalculationLuminanceMode = ECalculationLuminanceMode::Brightest;
+	
+	UPROPERTY(EditAnywhere, Category="LXRFlux|Analyze")
+	TEnumAsByte<ESceneCaptureSource> SaveLuminanceSceneTextureMode = ESceneCaptureSource::SCS_SceneColorHDR;
+	
 	UPROPERTY(EditAnywhere, Category="LXRFlux|Analyze", meta=(HideEditConditionToggle, EditCondition = "bUseLuminanceThreshold == true"))
 	float LuminanceThreshold = 0.2f;
 

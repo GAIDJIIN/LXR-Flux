@@ -27,6 +27,7 @@ SOFTWARE.
 #include "CoreMinimal.h"
 #include "LXRBufferReadback.h"
 #include "UnrealClient.h"
+#include "LXRInfo.h"
 #include "Engine.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 
@@ -63,7 +64,8 @@ struct FLXRFluxAnalyzeDispatchParams
 	uint8 FrameCaptureMax = 1;
 
 	float LuminanceThreshold;
-
+	ECalculationLuminanceMode CalculationLuminanceMode;
+	
 	FGPUFenceRHIRef Fence;
 	TSharedPtr<FFluxOutput> Output;
 

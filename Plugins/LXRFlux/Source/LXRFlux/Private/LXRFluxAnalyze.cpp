@@ -49,7 +49,8 @@ namespace LXRFluxCaptureIndex
 	constexpr uint32 INDEX_G = 1;
 	constexpr uint32 INDEX_B = 2;
 	constexpr uint32 INDEX_MAX_LUM = 3;
-	constexpr uint32 INDEX_COUNT = 8;
+	constexpr uint32 INDEX_COUNT = 4;
+	constexpr uint32 INDEX_ALL_LUM = 5;
 }
 
 namespace LXRFluxCaptureConstants
@@ -57,9 +58,9 @@ namespace LXRFluxCaptureConstants
 	constexpr uint32 NUM_THREADS_X = 32;
 	constexpr uint32 NUM_THREADS_Y = 32;
 	constexpr uint32 NUM_THREADS_Z = 1;
-	constexpr float LUMINANCE_SCALE = 10000.0f;
+	constexpr float LUMINANCE_SCALE = 1000.0f;
 
-	constexpr uint32 FLXRFluxBufferElements = 5;
+	constexpr uint32 FLXRFluxBufferElements = 6;
 	constexpr uint32 FLXRFluxBufferBytes = FLXRFluxBufferElements * sizeof(uint32);
 }
 
@@ -76,7 +77,7 @@ class LXRFLUX_API FLXRFluxIndirectAnalyze : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, InSceneCapture)
-
+		
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutData)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutCount)
 		SHADER_PARAMETER(float, LuminanceThreshold)
@@ -133,7 +134,6 @@ void FLXRFluxCaptureInterface::DispatchRenderThread(FRDGBuilder& GraphBuilder, c
 
 		PassParams->OutData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutDataBuffer, PF_R32_UINT));
 		PassParams->LuminanceThreshold = DispatchParams->LuminanceThreshold;
-
 
 		DispatchParams->DataReadbackBuffer = MakeUnique<FLXRBufferReadback>(TEXT("DataReadBack"));
 		// DispatchParams->DataReadbackBuffer->EnqueueCopy(GraphBuilder, OutDataBuffer, FLXRFluxIndirectBufferBytes);
@@ -200,12 +200,29 @@ void FLXRFluxCaptureInterface::BeginPollingReadback(TSharedPtr<FLXRFluxAnalyzeDi
 		uint32 EncodedB = DataBuffer[LXRFluxCaptureIndex::INDEX_B];
 		uint32 EncodedLuminance = DataBuffer[LXRFluxCaptureIndex::INDEX_MAX_LUM];
 		uint32 Count = DataBuffer[LXRFluxCaptureIndex::INDEX_COUNT];
-
-
+		uint32 AllLuminance = DataBuffer[LXRFluxCaptureIndex::INDEX_ALL_LUM];
+		
 		float FinalR = EncodedR / LuminanceScale;
 		float FinalG = EncodedG / LuminanceScale;
 		float FinalB = EncodedB / LuminanceScale;
-		float Luminance = EncodedLuminance / LuminanceScale;
+		float Luminance = 0.f;
+
+		switch (DispatchParams->CalculationLuminanceMode)
+		{
+		case ECalculationLuminanceMode::Average:
+				// Count < 0.f ? 1.f : Count to escape divide by zero
+				Luminance = (AllLuminance / (Count < 0.f ? 1.f : Count)) / LuminanceScale;
+				break;
+			case ECalculationLuminanceMode::Brightest:
+				Luminance = EncodedLuminance / LuminanceScale;
+				break;
+			default:
+				break;
+		}
+
+		// Debug screen debug message
+		// GEngine->AddOnScreenDebugMessage(-1, 0.05f, FColor::Red, "[FLXRFlux] Pixel Count: " + FString::FromInt(Count));
+		// GEngine->AddOnScreenDebugMessage(-1, 0.05f, FColor::Red, "[FLXRFlux] All luminance: " + FString::FromInt(AllLuminance));
 
 		FLinearColor FinalColor = FLinearColor(FinalR, FinalG, FinalB, 1);
 
@@ -229,6 +246,7 @@ void FLXRFluxCaptureInterface::BeginPollingReadback(TSharedPtr<FLXRFluxAnalyzeDi
 		DispatchParams->bAnalyzeDone = false;
 		DispatchParams->PollingAttempts = 0;
 
+		
 		UE_LOG(LogTemp, VeryVerbose, TEXT("[FLXRFlux] Raw Count: %u"), Count);
 		UE_LOG(LogTemp, VeryVerbose, TEXT("[FLXRFlux] Max Luminance: %.4f"), Luminance);
 		UE_LOG(LogTemp, VeryVerbose, TEXT("[FLXRFlux] RGB: R=%.4f G=%.4f B=%.4f"), FinalColor.R, FinalColor.G, FinalColor.B);

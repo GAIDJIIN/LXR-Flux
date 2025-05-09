@@ -13,7 +13,9 @@ SamplerState LinearSampler : register(s0);
 #define INDEX_B 2
 #define INDEX_MAX_LUM 3
 
-#define INDEX_COUNT 8
+#define INDEX_COUNT 4
+
+#define INDEX_ALL_LUM 5
 
 [numthreads(THREADS_X, THREADS_Y, THREADS_Z)]
 void MainReadData(uint3 DTid : SV_DispatchThreadID)
@@ -24,15 +26,17 @@ void MainReadData(uint3 DTid : SV_DispatchThreadID)
 	if (DTid.x >= TexSize.x || DTid.y >= TexSize.y)
 		return;
 
-	float3 Color = InSceneCapture.Load(int3(DTid.xy, 0)).rgb;
-
+	float4 Color =  InSceneCapture.Load(int3(DTid.xy, 0));
 	float Luminance = dot(Color, float3(0.2126, 0.7152, 0.0722));
-
+	
+	//float4 Color = InSceneCapture[DTid.xy];
+	//float Luminance = (Color.r + Color.g + Color.b) / 3;
+	
 	uint EncodedR = uint(Color.r * LUMINANCE_SCALE);
 	uint EncodedG = uint(Color.g * LUMINANCE_SCALE);
 	uint EncodedB = uint(Color.b * LUMINANCE_SCALE);
 	uint EncodedLuminance = uint(Luminance * LUMINANCE_SCALE);
-
+	
 	if (Luminance > LuminanceThreshold)
 	{
 		InterlockedMax(OutData[INDEX_R], EncodedR);
@@ -41,5 +45,7 @@ void MainReadData(uint3 DTid : SV_DispatchThreadID)
 		InterlockedMax(OutData[INDEX_MAX_LUM], EncodedLuminance);
 
 		InterlockedAdd(OutData[INDEX_COUNT], 1);
+		InterlockedAdd(OutData[INDEX_ALL_LUM], EncodedLuminance);
 	}
+	
 }
